@@ -10157,7 +10157,7 @@ bool ScalarEvolutionWrapperPass::runOnFunction(Function &F) {
   return false;
 }
 
-void ScalarEvolutionWrapperPass::releaseMemory() { SE.reset(); }
+void ScalarEvolutionWrapperPass::releaseMemory() { }
 
 void ScalarEvolutionWrapperPass::print(raw_ostream &OS, const Module *) const {
   SE->print(OS);
@@ -10222,7 +10222,7 @@ public:
   /// If \p Pred is non-null, the SCEV expression is rewritten to respect the
   /// equivalences present in \p Pred.
   ///
-  /// If \p NewPreds is non-null, rewrite is free to add further predicates to
+  /// If \p NewPreds is non-null, rewrite is eree to add further predicates to
   /// \p NewPreds such that the result will be an AddRecExpr.
   static const SCEV *rewrite(const SCEV *S, const Loop *L, ScalarEvolution &SE,
                              SmallPtrSetImpl<const SCEVPredicate *> *NewPreds,

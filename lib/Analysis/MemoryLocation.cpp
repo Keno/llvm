@@ -74,6 +74,11 @@ MemoryLocation MemoryLocation::getForSource(const MemTransferInst *MTI) {
   AAMDNodes AATags;
   MTI->getAAMetadata(AATags);
 
+  // If present !tbaa_src overrides !tbaa
+  MDNode *TBAATag = MTI->getMetadata(LLVMContext::MD_tbaa_src);
+  if (TBAATag)
+    AATags.TBAA = TBAATag;
+
   return MemoryLocation(MTI->getRawSource(), Size, AATags);
 }
 
@@ -86,6 +91,11 @@ MemoryLocation MemoryLocation::getForDest(const MemIntrinsic *MTI) {
   // to both the source and the destination.
   AAMDNodes AATags;
   MTI->getAAMetadata(AATags);
+
+  // If present !tbaa_dest overrides !tbaa
+  MDNode *TBAATag = MTI->getMetadata(LLVMContext::MD_tbaa_dest);
+  if (TBAATag)
+    AATags.TBAA = TBAATag;
 
   return MemoryLocation(MTI->getRawDest(), Size, AATags);
 }
