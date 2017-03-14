@@ -225,8 +225,13 @@ Instruction *InstCombiner::SimplifyMemTransfer(MemIntrinsic *MI) {
   Value *Dest = Builder->CreateBitCast(MI->getArgOperand(0), NewDstPtrTy);
   LoadInst *L = Builder->CreateLoad(Src, MI->isVolatile());
   L->setAlignment(SrcAlign);
-  if (CopyMD)
+  if (CopyMD) {
     L->setMetadata(LLVMContext::MD_tbaa, CopyMD);
+  } else {
+    MDNode *LoadTBAA = MI->getMetadata(LLVMContext::MD_tbaa_src);
+    if (LoadTBAA)
+      L->setMetadata(LLVMContext::MD_tbaa, LoadTBAA);
+  }
   MDNode *LoopMemParallelMD =
     MI->getMetadata(LLVMContext::MD_mem_parallel_loop_access);
   if (LoopMemParallelMD)
@@ -234,8 +239,13 @@ Instruction *InstCombiner::SimplifyMemTransfer(MemIntrinsic *MI) {
 
   StoreInst *S = Builder->CreateStore(L, Dest, MI->isVolatile());
   S->setAlignment(DstAlign);
-  if (CopyMD)
+  if (CopyMD) {
     S->setMetadata(LLVMContext::MD_tbaa, CopyMD);
+  } else {
+    MDNode *StoreTBAA = MI->getMetadata(LLVMContext::MD_tbaa_dest);
+    if (StoreTBAA)
+      S->setMetadata(LLVMContext::MD_tbaa, StoreTBAA);
+  }
   if (LoopMemParallelMD)
     S->setMetadata(LLVMContext::MD_mem_parallel_loop_access, LoopMemParallelMD);
 
