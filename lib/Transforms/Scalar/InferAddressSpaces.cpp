@@ -700,6 +700,12 @@ static bool handleMemIntrinsicPtrUse(MemIntrinsic *MI, Value *OldV,
                                      Value *NewV) {
   IRBuilder<> B(MI);
   MDNode *TBAA = MI->getMetadata(LLVMContext::MD_tbaa);
+  MDNode *TBAASrc = MI->getMetadata(LLVMContext::MD_tbaa_src);
+  if (!TBAASrc)
+    TBAASrc = TBAA;
+  MDNode *TBAADest = MI->getMetadata(LLVMContext::MD_tbaa_dest);
+  if (!TBAADest)
+    TBAADest = TBAA;
   MDNode *ScopeMD = MI->getMetadata(LLVMContext::MD_alias_scope);
   MDNode *NoAliasMD = MI->getMetadata(LLVMContext::MD_noalias);
 
@@ -724,13 +730,15 @@ static bool handleMemIntrinsicPtrUse(MemIntrinsic *MI, Value *OldV,
       B.CreateMemCpy(Dest, Src, MTI->getLength(),
                      MTI->getAlignment(),
                      false, // isVolatile
-                     TBAA, TBAAStruct, ScopeMD, NoAliasMD);
+                     TBAASrc, TBAADest,                    
+                     TBAAStruct, ScopeMD, NoAliasMD);
     } else {
       assert(isa<MemMoveInst>(MTI));
       B.CreateMemMove(Dest, Src, MTI->getLength(),
                       MTI->getAlignment(),
                       false, // isVolatile
-                      TBAA, ScopeMD, NoAliasMD);
+                      TBAASrc, TBAADest,
+                      ScopeMD, NoAliasMD);
     }
   } else
     llvm_unreachable("unhandled MemIntrinsic");

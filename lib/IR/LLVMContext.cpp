@@ -59,6 +59,8 @@ LLVMContext::LLVMContext() : pImpl(new LLVMContextImpl(*this)) {
     {MD_section_prefix, "section_prefix"},
     {MD_absolute_symbol, "absolute_symbol"},
     {MD_associated, "associated"},
+    {MD_tbaa_src, "tbaa_src"},
+    {MD_tbaa_dest, "tbaa_dest"}
   };
 
   for (auto &MDKind : MDKinds) {
