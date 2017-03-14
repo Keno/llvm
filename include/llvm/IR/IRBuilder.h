@@ -403,7 +403,8 @@ public:
   /// specified, it will be added to the instruction. Likewise with alias.scope
   /// and noalias tags.
   CallInst *CreateMemSet(Value *Ptr, Value *Val, uint64_t Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr,
+                         bool isVolatile = false, 
+                         MDNode *TBAATag = nullptr,
                          MDNode *ScopeTag = nullptr,
                          MDNode *NoAliasTag = nullptr) {
     return CreateMemSet(Ptr, Val, getInt64(Size), Align, isVolatile,
@@ -411,7 +412,8 @@ public:
   }
 
   CallInst *CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr,
+                         bool isVolatile = false,
+                         MDNode *TBAATag = nullptr,
                          MDNode *ScopeTag = nullptr,
                          MDNode *NoAliasTag = nullptr);
 
@@ -421,16 +423,18 @@ public:
   /// specified, it will be added to the instruction. Likewise with alias.scope
   /// and noalias tags.
   CallInst *CreateMemCpy(Value *Dst, Value *Src, uint64_t Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr,
+                         bool isVolatile = false, MDNode *TBAASrcTag = nullptr,
+                         MDNode *TBAADestTag = nullptr,
                          MDNode *TBAAStructTag = nullptr,
                          MDNode *ScopeTag = nullptr,
                          MDNode *NoAliasTag = nullptr) {
-    return CreateMemCpy(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag,
-                        TBAAStructTag, ScopeTag, NoAliasTag);
+    return CreateMemCpy(Dst, Src, getInt64(Size), Align, isVolatile, TBAASrcTag,
+                        TBAADestTag, TBAAStructTag, ScopeTag, NoAliasTag);
   }
 
   CallInst *CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr,
+                         bool isVolatile = false, MDNode *TBAASrcTag = nullptr,
+                         MDNode *TBAADestTag = nullptr,
                          MDNode *TBAAStructTag = nullptr,
                          MDNode *ScopeTag = nullptr,
                          MDNode *NoAliasTag = nullptr);
@@ -442,15 +446,17 @@ public:
   /// specified, it will be added to the instruction. Likewise with alias.scope
   /// and noalias tags.
   CallInst *CreateMemMove(Value *Dst, Value *Src, uint64_t Size, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = nullptr,
+                          bool isVolatile = false, MDNode *TBAASrcTag = nullptr,
+                          MDNode *TBAADestTag = nullptr,
                           MDNode *ScopeTag = nullptr,
                           MDNode *NoAliasTag = nullptr) {
     return CreateMemMove(Dst, Src, getInt64(Size), Align, isVolatile,
-                         TBAATag, ScopeTag, NoAliasTag);
+                         TBAASrcTag, TBAADestTag, ScopeTag, NoAliasTag);
   }
 
   CallInst *CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = nullptr,
+                          bool isVolatile = false, MDNode *TBAASrcTag = nullptr,
+                          MDNode *TBAADestTag = nullptr,
                           MDNode *ScopeTag = nullptr,
                           MDNode *NoAliasTag = nullptr);
 

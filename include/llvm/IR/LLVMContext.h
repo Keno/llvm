@@ -79,6 +79,8 @@ public:
     MD_section_prefix = 20,           // "section_prefix"
     MD_absolute_symbol = 21,          // "absolute_symbol"
     MD_associated = 22,               // "associated"
+    MD_tbaa_src = 23,                 // "tbaa_src"
+    MD_tbaa_dest = 24                 // "tbaa_dest"
   };
 
   /// Known operand bundle tag IDs, which always have the same value.  All

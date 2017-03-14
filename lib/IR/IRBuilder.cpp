@@ -105,8 +105,8 @@ CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
 
 CallInst *IRBuilderBase::
 CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
-             bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag,
-             MDNode *ScopeTag, MDNode *NoAliasTag) {
+             bool isVolatile, MDNode *TBAASrcTag, MDNode *TBAADestTag,
+             MDNode *TBAAStructTag, MDNode *ScopeTag, MDNode *NoAliasTag) {
   Dst = getCastedInt8PtrValue(Dst);
   Src = getCastedInt8PtrValue(Src);
 
@@ -118,8 +118,11 @@ CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
   CallInst *CI = createCallHelper(TheFn, Ops, this);
   
   // Set the TBAA info if present.
-  if (TBAATag)
-    CI->setMetadata(LLVMContext::MD_tbaa, TBAATag);
+  if (TBAASrcTag)
+    CI->setMetadata(LLVMContext::MD_tbaa_src, TBAASrcTag);
+
+  if (TBAADestTag)
+    CI->setMetadata(LLVMContext::MD_tbaa_dest, TBAADestTag);
 
   // Set the TBAA Struct info if present.
   if (TBAAStructTag)
@@ -136,8 +139,8 @@ CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
 
 CallInst *IRBuilderBase::
 CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
-              bool isVolatile, MDNode *TBAATag, MDNode *ScopeTag,
-              MDNode *NoAliasTag) {
+              bool isVolatile, MDNode *TBAASrcTag,
+              MDNode *TBAADestTag, MDNode *ScopeTag, MDNode *NoAliasTag) {
   Dst = getCastedInt8PtrValue(Dst);
   Src = getCastedInt8PtrValue(Src);
   
@@ -149,9 +152,12 @@ CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
   CallInst *CI = createCallHelper(TheFn, Ops, this);
   
   // Set the TBAA info if present.
-  if (TBAATag)
-    CI->setMetadata(LLVMContext::MD_tbaa, TBAATag);
- 
+  if (TBAASrcTag)
+    CI->setMetadata(LLVMContext::MD_tbaa_src, TBAASrcTag);
+
+  if (TBAADestTag)
+    CI->setMetadata(LLVMContext::MD_tbaa_dest, TBAADestTag);
+
   if (ScopeTag)
     CI->setMetadata(LLVMContext::MD_alias_scope, ScopeTag);
  
