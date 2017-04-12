@@ -69,10 +69,21 @@ class AliasSet : public ilist_node<AliasSet> {
       if (AAInfo == DenseMapInfo<AAMDNodes>::getEmptyKey())
         // We don't have a AAInfo yet. Set it to NewAAInfo.
         AAInfo = NewAAInfo;
-      else if (AAInfo != NewAAInfo)
-        // NewAAInfo conflicts with AAInfo.
-        AAInfo = DenseMapInfo<AAMDNodes>::getTombstoneKey();
-
+      else {
+        if (AAInfo.TBAA != NewAAInfo.TBAA) {
+          // NewAAInfo conflicts with AAInfo.
+          AAInfo = DenseMapInfo<AAMDNodes>::getTombstoneKey();
+          return SizeChanged;
+        }
+        // Could intersect for these two, but that might insert new MDNodes,
+        // which is probably not worth it.
+        if (AAInfo.Scope != NewAAInfo.Scope) {
+          AAInfo.Scope = nullptr;
+        }
+        if (AAInfo.NoAlias != NewAAInfo.NoAlias) {
+          AAInfo.NoAlias = nullptr;
+        }
+      }
       return SizeChanged;
     }
 
