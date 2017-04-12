@@ -82,6 +82,10 @@ static cl::opt<bool>
     DisablePromotion("disable-licm-promotion", cl::Hidden, cl::init(false),
                      cl::desc("Disable memory promotion in LICM pass"));
 
+static cl::opt<bool>
+   DebugMissedLoadMove("debug-licm-missed-load", cl::Hidden, cl::init(false),
+                    cl::desc("Debug why LICM missed moving a load"));
+
 static cl::opt<uint32_t> MaxNumUsesTraversed(
     "licm-max-num-uses-traversed", cl::Hidden, cl::init(8),
     cl::desc("Max num uses visited for identifying load "
@@ -562,7 +566,93 @@ static bool isLoadInvariantInLoop(LoadInst *LI, DominatorTree *DT,
   return false;
 }
 
-bool llvm::canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
+static void DiagnoseMissedMove(llvm::Loop *CurLoop, AliasAnalysis *AA, LoadInst *LI, Value *V, uint64_t Size,
+                               const AAMDNodes &AAInfo,
+                               AliasSetTracker *CurAST) {
+   Module *M = LI->getParent()->getParent()->getParent();
+   dbgs() << "LICM refused to hoist " << *LI << " (" << "TBAA ";
+   AAInfo.TBAA->print(dbgs(), M, true);
+   dbgs() << "). Attempting to find out why:\n";
+   AliasSet &AS = CurAST->getAliasSetForPointer(V, Size, AAInfo);
+   // Go through the list of pointers in this alias set and see why the Alias
+   // tracker decided to put our pointer in that alias set. The simple case
+   // is that we directly alias a store.
+   for (auto &Rec : AS) {
+      MemoryLocation RecLoc(Rec.getValue(), Rec.getSize(), Rec.getAAInfo());
+       auto Relation = AA->alias(MemoryLocation(V, Size, AAInfo),
+                                 MemoryLocation(Rec.getValue(), Rec.getSize(),
+                                                Rec.getAAInfo()));
+       if (Relation != NoAlias) {
+         // Iterate over the users of this pointer and see if there's any stores
+         // we might be conflicting with
+         for (Use &U : Rec.getValue()->uses()) {
+           if (U.getOperandNo() != 1)
+             continue;
+           if (!isa<StoreInst>(U.getUser()))
+             continue;
+           if (!CurLoop->contains(cast<StoreInst>(U.getUser())))
+             continue;
+           dbgs() << "   Value aliases " << Rec.getValue() << " (TBAA ";
+           if (Rec.getAAInfo().TBAA)
+             Rec.getAAInfo().TBAA->print(dbgs(), M, true);
+           else
+             dbgs() << "<nullptr>";
+           dbgs() << ")\n";
+           dbgs() << "       Value modified at " << *U.getUser() << "\n";
+         }
+         continue;
+       }
+     
+       // Tell the user about stores in this alias set
+       for (Use &U : Rec.getValue()->uses()) {
+         if (U.getOperandNo() != 1)
+           continue;
+         if (!isa<StoreInst>(U.getUser()))
+           continue;
+         if (!CurLoop->contains(cast<StoreInst>(U.getUser())))
+           continue;
+         dbgs() << "   Alias set value modified by " << *U.getUser() << "\n";
+         // Try to find a path in the alias graph that explains why these two
+         // alias.
+         DenseSet<MemoryLocation> Visited;
+         std::vector<MemoryLocation> Stack;
+         std::vector<std::vector<MemoryLocation>> WorkQueue;
+
+         Stack.push_back(RecLoc);
+         WorkQueue.push_back(Stack);
+         Visited.insert(RecLoc);
+         while (true) {
+            Stack = WorkQueue.back();
+            WorkQueue.pop_back();
+            for (auto &Rec2 : AS) {
+                MemoryLocation Loc(Rec2.getValue(), Rec2.getSize(),
+                                                         Rec2.getAAInfo());
+                if (Visited.count(Loc))
+                  continue;
+                auto Relation2 = AA->alias(Loc,
+                                          Stack.back());
+                if (Relation2 == NoAlias)
+                  continue;
+                if (Rec2.getValue() == V) {
+                    // We've reached our value, dump the stack
+                    dbgs() << "    Possible alias graph path is: \n";
+                    for (MemoryLocation SLoc : Stack) {
+                        dbgs() << "       " << *SLoc.Ptr << "\n";
+                    }
+                    goto done;
+                }
+                Visited.insert(Loc);
+                std::vector<MemoryLocation> NewStack = Stack;
+                NewStack.push_back(Loc);
+                WorkQueue.push_back(NewStack);
+            }
+         }
+       done:;
+      }
+   }
+}
+
+bool llvm::canSinkOrHoistInst(Instruction &I, AliasAnalysis *AA, DominatorTree *DT,
                               Loop *CurLoop, AliasSetTracker *CurAST,
                               LoopSafetyInfo *SafetyInfo,
                               OptimizationRemarkEmitter *ORE) {
@@ -594,12 +684,15 @@ bool llvm::canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
         pointerInvalidatedByLoop(LI->getOperand(0), Size, AAInfo, CurAST);
     // Check loop-invariant address because this may also be a sinkable load
     // whose address is not necessarily loop-invariant.
-    if (ORE && Invalidated && CurLoop->isLoopInvariant(LI->getPointerOperand()))
+    if (ORE && Invalidated && CurLoop->isLoopInvariant(LI->getPointerOperand())) {
+      if (DebugMissedLoadMove) {
+        DiagnoseMissedMove(CurLoop, AA, LI, LI->getOperand(0), Size, AAInfo, CurAST);
+      }
       ORE->emit(OptimizationRemarkMissed(
                     DEBUG_TYPE, "LoadWithLoopInvariantAddressInvalidated", LI)
                 << "failed to move load with loop-invariant address "
                    "because the loop may invalidate its value");
-
+    }
     return !Invalidated;
   } else if (CallInst *CI = dyn_cast<CallInst>(&I)) {
     // Don't sink or hoist dbg info; it's legal, but not useful.
